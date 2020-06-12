@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
@@ -66,3 +67,7 @@ This section has moved here: https://facebook.github.io/create-react-app/docs/de
 ### `npm run build` fails to minify
 
 This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+=======
+# ZohoExtension
+This project is to create a chrome extension for zoho. This extension will ease employee to check in and check out from zoho account within a click.
+>>>>>>> 59fd5b3e0e78aa82494a6a2bf1174857c21ddbcc
