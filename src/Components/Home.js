@@ -30,6 +30,8 @@ class Home extends Component {
       isLoading: false, //Loading switch
       activeIndex: 1, // Accordian handler index
       time: "",
+      workingHours:"00:00", 
+      tsecs: 0,
     };
     this.login = this.login.bind(this);
     this.logout = this.logout.bind(this);
@@ -63,6 +65,10 @@ class Home extends Component {
             isLogged: true,
           },
           () => {
+            if(chrome.runtime.lastError){
+              let err = chrome.runtime.lastError;
+              console.log(err);
+            }
             this.setState({
               email: email,
               name: name,
@@ -93,11 +99,12 @@ class Home extends Component {
         "http://intranet.accionlabs.com:3001/employee/attendanceDetails/";
       let attendanceDetails = await axios.get(zohoURL + this.state.employeeId);
       if (attendanceDetails.data) {
-        let { status, checkedInOrOut, checkedStatus } = attendanceDetails.data;
+        let { status, checkedInOrOut, checkedStatus, workingHours } = attendanceDetails.data;
         this.setState({
           status: status,
           checkedMessage: checkedInOrOut,
           checkStatus: checkedStatus,
+          workingHours: workingHours,
           isLoading: false,
         });
       }
@@ -113,10 +120,29 @@ class Home extends Component {
       let check = this.state.checkStatus ? "checkOut" : "checkIn";
       let attendanceAPI = zohoURL + this.state.employeeId + "/" + check;
       let attendance = await axios.get(attendanceAPI);
-      if (attendance.data.response) {
-        this.getAttendanceDetails();
+      if (attendance.data.response === "success") {
+        if (attendance.data.punchIn) {
+          let formattedDate = attendance.data.punchIn.replace(/-/g, " ");
+          formattedDate = moment(formattedDate).format("ddd, h:mm a");
+          this.setState({
+            tsecs: attendance.data.tsecs,
+            checkStatus: true,
+            checkedMessage: `Your last check-in was at ${formattedDate}`,
+            isLoading: false,
+          });
+        } else {
+          let formattedDate = attendance.data.tdate.replace(/-/g, " ");
+          formattedDate = moment(formattedDate).format("ddd, h:mm a");
+          this.setState({
+            tsecs: attendance.data.tsecs,
+            checkStatus: false,
+            checkedMessage: `Your last check-out was at ${formattedDate}`,
+            isLoading: false,
+          });
+        }
       } else {
         alert("Something went wrong");
+        this.setState({ isLoading: false });
       }
     } catch (err) {}
   }
@@ -204,7 +230,6 @@ class Home extends Component {
 
   render() {
     const { activeIndex, checkStatus } = this.state;
-
     return (
       <div style={{ margin: "10px" }}>
         {this.state.isLogged ? (
@@ -214,7 +239,6 @@ class Home extends Component {
                 floated="right"
                 size="mini"
                 circular
-                centered
                 src={this.state.photo}
               />
               <Card.Header style={{ marginTop: "15px" }}>
@@ -225,7 +249,7 @@ class Home extends Component {
               </Card.Description>
               <Card.Description>{this.state.checkedMessage}</Card.Description>
               <Card.Meta style={{ fontSize: "30px", marginTop: "12px" }}>
-                0:14 hrs
+                {this.state.workingHours} hrs
               </Card.Meta>
               <Card.Description>
                 {moment().format("D MMM yyyy (ddd)")}
@@ -301,10 +325,7 @@ class Home extends Component {
 }
 
 function Timer() {
-  console.log("This function is timer called");
-  
   const [time, timer] = React.useState("");
-
   React.useEffect(() => {
     const timeId = setInterval(() => {
       timer(moment().format("h:mm:ss a"));
@@ -313,23 +334,18 @@ function Timer() {
       clearInterval(timeId);
     };
   }, []);
-
   return time;
 }
 
 function AnimationIcon(flag) {
-  console.log(flag.animate);
-  
   let animationController = React.createRef();
-
   React.useEffect(() => {
     let animationRender = lottie.loadAnimation({
       container: animationController.current,
       render: "svg",
-      // renderer: true,
       loop: flag.animate,
-      // autoplay: true,
-      path: "https://maxst.icons8.com/vue-static/landings/animated-icons/icons/hourglass/hourglass.json",
+      path:
+        "https://maxst.icons8.com/vue-static/landings/animated-icons/icons/hourglass/hourglass.json",
     });
     animationRender.setSpeed(0.5);
     return () => {
