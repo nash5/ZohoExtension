@@ -1,26 +1,29 @@
 {
-  "name": "Zoho CheckIn/CheckOut",
-  "version": "1.0",
+  "name": "Accion Check-In/Out",
+  "version": "1.0.2",
   "manifest_version": 2,
   "icons": {
-    "16": "zohologo2.png",
-    "48": "zohologo2.png",
-    "128": "zohologo2.png"
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo128.png"
   },
+  "description": "To help employees to easily check-in and check-out from attendance.",
   "browser_action": {
-    "default_title": "Ease your Zoho Check In and Check Out",
+    "default_icon": "logo.png",
+    "default_title": "Ease your Check In and Check Out",
     "default_popup": "index.html"
   },
   "permissions": [
     "identity",
     "identity.email",
     "storage",
-    "cookies",
+    "notifications",
     "https://accounts.google.com/*",
     "https://www.googleapis.com/*"
   ],
+  "key":"SYSTEM-EXTENSION-KEY",
   "oauth2": {
-    "client_id": "48020008429-7ra28r37m4nub77k895sgqrda18lunn8.apps.googleusercontent.com",
+    "client_id": "GOOGLE-CLIENT-ID",
     "scopes": ["https://www.googleapis.com/auth/userinfo.email"]
   },
   "content_security_policy": "script-src 'self' 'sha256-lFULgMqRI9qoz3sT+XrknvSTHo1H55l0t7NWk/tSAf8='; object-src 'self'"

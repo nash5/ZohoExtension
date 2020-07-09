@@ -1,15 +1,15 @@
+/* eslint-disable no-unused-expressions */
 /* global chrome */
 
 import React, { Component } from "react";
 import axios from "axios";
-// import App from "../App";
 import lottie from "lottie-web";
 import moment from "moment";
 
 import {
   Button,
   Card,
-  Image,
+  // Image,
   Icon,
   Segment,
   Accordion,
@@ -28,9 +28,11 @@ class Home extends Component {
       successRes: "",
       isLogged: false, // Login switch
       isLoading: false, //Loading switch
+      screenLoading: false, //wehn screen is loading
+      errorMessage: "Loading...",
       activeIndex: 1, // Accordian handler index
       time: "",
-      workingHours:"00:00", 
+      workingHours: "00:00",
       tsecs: 0,
     };
     this.login = this.login.bind(this);
@@ -54,37 +56,37 @@ class Home extends Component {
       let employeDetails = await axios.get(
         "http://intranet.accionlabs.com:3001/employee/userDetails/" + emailId
       );
-      const { email, name, photo, employeeId } = employeDetails.data.result;
       if (employeDetails.data.result) {
+        const { email, name, employeeId } = employeDetails.data.result; // photo removed coz of cookies error
         chrome.storage.sync.set(
           {
             email: email,
             name: name,
-            photo: photo,
             employeeId: employeeId,
             isLogged: true,
           },
           () => {
-            if(chrome.runtime.lastError){
+            if (chrome.runtime.lastError) {
               let err = chrome.runtime.lastError;
               console.log(err);
             }
             this.setState({
               email: email,
               name: name,
-              photo: photo,
               employeeId: employeeId,
               isLogged: true,
               isLoading: false,
             });
+            this.getAttendanceDetails();
           }
         );
-      } else if (chrome.runtime.lastError) {
-        console.log("Error");
       } else {
-        alert("Nothing happened");
+        alert("Something went wrong!!! Try after sometime");
       }
     } catch (err) {
+      if (err) {
+        console.log(err);
+      }
       if (chrome.runtime.lastError) {
         console.log("error");
       } else {
@@ -95,22 +97,44 @@ class Home extends Component {
 
   async getAttendanceDetails() {
     try {
+      this.setState({ screenLoading: true });
       let zohoURL =
         "http://intranet.accionlabs.com:3001/employee/attendanceDetails/";
       let attendanceDetails = await axios.get(zohoURL + this.state.employeeId);
       if (attendanceDetails.data) {
-        let { status, checkedInOrOut, checkedStatus, workingHours } = attendanceDetails.data;
+        let {
+          status,
+          checkedInOrOut,
+          checkedStatus,
+          workingHours,
+        } = attendanceDetails.data;
         this.setState({
           status: status,
           checkedMessage: checkedInOrOut,
           checkStatus: checkedStatus,
           workingHours: workingHours,
           isLoading: false,
+          screenLoading: false,
         });
       }
     } catch (err) {
+      if (err.message) {
+        this.setState({
+          errorMessage: err.message,
+        });
+      }
       console.log(err);
     }
+  }
+
+  notificationFunction(){
+    chrome.notifications.create({
+      type : "basic",
+      iconUrl: "/images/logo.png",
+      title: "Basic Notification",
+      message: "Short message part",
+      expandedMessage: "Longer part of the message",
+    })
   }
 
   async checkInOrOut() {
@@ -123,7 +147,7 @@ class Home extends Component {
       if (attendance.data.response === "success") {
         if (attendance.data.punchIn) {
           let formattedDate = attendance.data.punchIn.replace(/-/g, " ");
-          formattedDate = moment(formattedDate).format("ddd, h:mm a");
+          formattedDate = moment(new Date(formattedDate)).format("ddd, h:mm a");
           this.setState({
             tsecs: attendance.data.tsecs,
             checkStatus: true,
@@ -132,7 +156,7 @@ class Home extends Component {
           });
         } else {
           let formattedDate = attendance.data.tdate.replace(/-/g, " ");
-          formattedDate = moment(formattedDate).format("ddd, h:mm a");
+          formattedDate = moment(new Date(formattedDate)).format("ddd, h:mm a");
           this.setState({
             tsecs: attendance.data.tsecs,
             checkStatus: false,
@@ -157,7 +181,6 @@ class Home extends Component {
               token
           );
           if (oAuthGoogle.data.email.includes("@accionlabs.com")) {
-            alert(oAuthGoogle.data.email);
             this.getUserDetails(oAuthGoogle.data.email);
           } else {
             alert("Login with Accion email id");
@@ -195,9 +218,7 @@ class Home extends Component {
               });
             }
           );
-          chrome.storage.sync.clear(() => {
-            alert("Logged Out");
-          });
+          chrome.storage.sync.clear(() => {});
         } else {
           chrome.storage.sync.clear(() => {});
           this.setState({
@@ -212,13 +233,12 @@ class Home extends Component {
 
   componentDidMount() {
     chrome.storage.sync.get(
-      ["email", "name", "photo", "employeeId", "isLogged"],
+      ["email", "name", "employeeId", "isLogged"],
       (value) => {
         if (value.isLogged) {
           this.setState({
             email: value.email,
             name: value.name,
-            photo: value.photo,
             employeeId: value.employeeId,
             isLogged: value.isLogged,
           });
@@ -233,79 +253,86 @@ class Home extends Component {
     return (
       <div style={{ margin: "10px" }}>
         {this.state.isLogged ? (
-          <Card fluid centered raised>
-            <Card.Content textAlign="center">
-              <Image
-                floated="right"
-                size="mini"
-                circular
-                src={this.state.photo}
-              />
-              <Card.Header style={{ marginTop: "15px" }}>
-                {this.state.name}
-              </Card.Header>
-              <Card.Description style={{ marginTop: "15px" }}>
-                {this.state.status}
-              </Card.Description>
-              <Card.Description>{this.state.checkedMessage}</Card.Description>
-              <Card.Meta style={{ fontSize: "30px", marginTop: "12px" }}>
-                {this.state.workingHours} hrs
-              </Card.Meta>
-              <Card.Description>
-                {moment().format("D MMM yyyy (ddd)")}
-              </Card.Description>
-            </Card.Content>
-            <Card.Content extra>
-              <Segment textAlign="center" size="big">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
+          this.state.screenLoading ? (
+            <Card centered>
+              <Card.Content>{this.state.errorMessage}</Card.Content>
+            </Card>
+          ) : (
+            <Card fluid centered raised>
+              <Card.Content textAlign="center">
+                {/* <Image
+                  floated="right"
+                  size="mini"
+                  circular
+                  src={this.state.photo}
+                /> */}
+                <Card.Header style={{ marginTop: "15px" }}>
+                  {this.state.name} ({this.state.employeeId})
+                </Card.Header>
+                <Card.Description
+                  style={{ marginTop: "5px", marginBottom: "3px" }}
                 >
-                  <AnimationIcon animate={this.state.checkStatus} />
-                  <Button
-                    onClick={this.checkInOrOut}
-                    inverted
-                    color={checkStatus ? "red" : "green"}
-                    animated
-                    icon
-                    labelPosition="left"
-                    loading={this.state.isLoading}
+                  {this.state.status}
+                </Card.Description>
+                <Card.Description style={{ marginBottom: "12px" }}>
+                  {this.state.checkedMessage}
+                </Card.Description>
+                <Card.Description>
+                  {moment().format("D MMM yyyy (ddd)")}
+                </Card.Description>
+              </Card.Content>
+              <Card.Content extra>
+                <Segment textAlign="center" size="big">
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
                   >
-                    <Button.Content className="checkButton" visible>
-                      {checkStatus ? "Check Out" : "Check In"}
-                    </Button.Content>
-                    <Button.Content
-                      style={{
-                        fontSize: "19px",
-                        textAlign: "center",
-                        padding: "3px 0 5px 0",
-                      }}
-                      hidden
+                    <AnimationIcon animate={this.state.checkStatus} />
+                    <Button
+                      onClick={this.checkInOrOut}
+                      inverted
+                      color={checkStatus ? "red" : "green"}
+                      animated
+                      icon
+                      labelPosition="left"
+                      loading={this.state.isLoading}
                     >
-                      <Timer />
-                      <Icon
-                        style={{ position: "relative", left: "10px" }}
-                        name={checkStatus ? "left arrow" : "right arrow"}
-                      />
-                    </Button.Content>
-                  </Button>
-                </div>
-              </Segment>
-              <Accordion>
-                <Accordion.Title
-                  active={activeIndex === 0}
-                  index={0}
-                  onClick={this.accordianHandleClick}
-                ></Accordion.Title>
-                <Accordion.Content active={activeIndex === 0}>
-                  <Button onClick={this.logout}>Log out</Button>
-                </Accordion.Content>
-              </Accordion>
-            </Card.Content>
-          </Card>
+                      <Button.Content className="checkButton" visible>
+                        {checkStatus ? "Check Out" : "Check In"}
+                      </Button.Content>
+                      <Button.Content
+                        style={{
+                          fontSize: "19px",
+                          textAlign: "center",
+                          padding: "3px 0 5px 0",
+                        }}
+                        hidden
+                      >
+                        <Timer />
+                        <Icon
+                          style={{ position: "relative", left: "10px" }}
+                          name={checkStatus ? "left arrow" : "right arrow"}
+                        />
+                      </Button.Content>
+                    </Button>
+                  </div>
+                </Segment>
+                <Accordion>
+                  <Accordion.Title
+                    active={activeIndex === 0}
+                    index={0}
+                    onClick={this.accordianHandleClick}
+                  ></Accordion.Title>
+                  <Accordion.Content active={activeIndex === 0}>
+                    <Button onClick={this.logout}>Log out</Button>
+                  </Accordion.Content>
+                </Accordion>
+              </Card.Content>
+            </Card>
+          )
         ) : (
           <Card fluid centered raised>
             <Card.Content textAlign="center">
@@ -314,7 +341,7 @@ class Home extends Component {
                 onClick={this.login}
                 loading={this.state.isLoading}
               >
-                Sign in with Accion email
+                Sign in with Accion email id
               </Button>
             </Card.Content>
           </Card>
